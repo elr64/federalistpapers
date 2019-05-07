@@ -1,3 +1,80 @@
 # Federalist Papers Author Attribution and Text Generation
 
-This repository is compiled of a raw text copy of the entire Federalist Papers, downloaded from Project Gutenberg, a text file containing the function words defined by Mosteller and Wallace (1964), and three Jupyter notebooks. The goal of the project is to replicate previous author attribution models used to predict the disputed papers and compare the results of less intensive methods (i.e. including only the papers as training data and not performing TF-IDF). 
+----------------------------------------------------------------------------------------------------------
+
+## Introduction 
+
+This repository is compiled of a raw text copy of the entire Federalist Papers, downloaded from Project Gutenberg, a text file containing the function words defined by Mosteller and Wallace (1964), and three Jupyter notebooks. The goal of the project is trifold, the first part to replicate previous author attribution models used to predict the disputed papers and compare the results of less intensive methods (i.e. including only the papers as training data and not performing TF-IDF). The next goal is to train recurrent neural network models using long short-term memory layers on the entire corpus, exclusively the papers written by Hamilton, the papers written by Madison, and a combination of the papers written by Madison and the disputed papers, since they are widely attributed to Madison. Finally, text generated from these recurrent neural networks will be fed back into the author attribution models to assess whether "artifical intelligence" can reproduce text well enough that the author attribution models correctly predict which author the text was trained on. Given the small size of the corpus, the hypothesis is that the recurrent neural network models will not be able to produce sensical text that follows the rules of English grammar and that the author attribution models will not be able to accurately and consistently predict which author RNN that the the generated text is coming from was trained on. 
+
+## Code
+
+### 'fed_papers_authattr.ipynb'
+
+This jupyter notebook reads in the text document from Project Gutenberg, separates each Federalist Paper into an individual text file, creates a tsv file of all of the texts, authors, and paper numbers, and creates lists of the authors and papers. The papers written by John Jay and collaborated on are excluded. The papers are then split into training and testing, i.e. the papers with known authors and the disputed papers. 
+
+Feature vectors are created for each of the papers, using the 70 function words originally outlined by Mosteller & Wallace (1964). 
+
+Three author attributon models are trained on the papers known to be written by Hamilton or Madison. The first is a Naïve Bayes model. Second is a K-Nearest Neighbor model using the brute force algorithm and K = 2. Lastly a Support Vector Machine model is trained using three of the 70 function words, based on Bosch and Smith (1988), which created a hyperplane using the three words that correctly attributes each of the disputed papers to Madison, when training on the Federalist Papers and additional works by Hamilton and Madison.
+
+Example usage: 
+pip install runipy
+runipy 'fed_papers_authattr.ipynb'
+
+(However results print to the jupyter notebook itself, so ideally the code should be run from within the notebook, by running all of the cells at once)
+
+### 'fed_papers_rnn.ipynb'
+
+The individiaul Federalist Papers files are read in and used to create four lists of texts: all of the papers, papers written by Hamilton, paper written by Madison, and papers written by Madison combined with the disputed papers. 
+
+A function is created to process and convert the texts and train recurrent neural networks on them. This function first defines sequences of 50 words long from the papers to create the training data, which are then converted to integers and one hot encoded. 
+
+A recurrent neural network model is set up with no pre-trained embeddings and an output embedding size of 100. Three LSTM layers, each with dropout and recurrent dropout equal to 0.1 and 256 memory units, followed by a dense layer with Relu activation, a 0.5 dropout layer, and a dense layer with softmax activation make up the rest of the model. 
+
+A metric for perplexity is defined (taken from https://github.com/icoxfog417/tying-wv-and-wc), which takes the categorical cross entropy and computes 2 to the power of it. 
+
+The model is fit with a batch size of 2048 and 50 epochs. Held out validation data is used to compute accuracy and perplexity. 
+
+The trained model is then used to generate text strings 500 words long, which are saved for later analysis.
+
+Example usage (with runipy installed): 
+runipy 'fed_papers_rnn.ipynb'
+
+(However results print to the jupyter notebook itself, so ideally the code should be run from within the notebook, by running all of the cells at once)
+
+### 'generated_text_predictions.ipynb'
+
+The texts generated by the RNN models in the previous notebook are read in and preprocessed for analysis. The author attribution models trained in the first notebook are loaded and used to predict the author of the generated texts. 
+
+Example usage (with runipy installed): 
+runipy 'generated_text_predictions.ipynb'
+
+(However results print to the jupyter notebook itself, so ideally the code should be run from within the notebook, by running all of the cells at once)
+
+## Results
+
+Of the author attribution models, the Naïve Bayes performed the best. It achieved a training accuracy of 100% and testing accuracy of 91.67%. The SVM model achieved a training accuracy of 98.48% and testing accuracy of 75%. The K-Nearest Neighbor model showed clear signs of overfitting the training data by producing a training accuracy of 100% and testing accuracy of 50%, comparable to random chance. Given the distribution of papers written by Hamilton (51) to those written by Madison (14), the KNN model would likely skew toward Hamilton and the number of neighbors is extremely restricted. 
+
+None of the recurrent neural networks trained produced meaningful text. The texts generated repeated both words and punctuation, demonstrating that the model did not learn grammar rules. Similarly, there was no form of setence structure produced by the models. Quantitatively, each was analyzed using the held out validation data on word prediction accuracy and overall perplexity. All models only achieved accuracy between 7-8% and resulted in a perplexity ranging from 8000000 to 8300000, or between 16000 and 16600 per word. Since the vocabulary size for the model trained on all of the papers is only 9911, this is extremely high. It would be more productive to choose randomly between each word in the vocabulary than to use the models for prediction.
+
+When using the previously trained author attribution models to predict the authors of the generated texts, the Naïve Bayes model accurately predicted all 9 of the generated texts. Both the K-Nearest Neighbor and SVM models predict Hamilton each time, making them respectively 33% accurate. The discrepency in accuracy between Naïve Bayes and SVM is much larger here than on the training and testing data. 
+
+Overall the Naïve Bayes model results in the highest accuracy, with the SVM model performing moderately well, and the K-Nearest Neighbor proving unsuitable for the task. The RNNs trained did not produce readable text or good results, but could likely be improved by expanding the training corpus and increasing the vocabulary size of the embedding layer, the number of LSTM layers, and the epochs.
+
+## Useful Resources/References:
+
+Bosch, R. A. & Smith, J. A. 1988. Separating hyperplanes and the authorship of the disputed Federalist Papers. The American Mathematical Monthly. 105(7): 601-608.
+
+Brownee, J. Dropout Regularization in Deep Learning Models With Keras. 
+https://machinelearningmastery.com/dropout-regularization-deep-learning-models-keras/
+
+Brownee, J. How to Use Word Embedding Layers for Deep Learning With Keras. https://machinelearningmastery.com/use-word-embedding-layers-deep-learning-keras/
+
+Brownee, J. Text Generation with LSTM Recurrent Neural Networks in Python With Keras. https://machinelearningmastery.com/text-generation-lstm-recurrent-neural-networks-python-keras/
+
+Koehrsen, W. Recurrent Neural Networks by Example in Python. https://towardsdatascience.com/recurrent-neural-networks-by-example-in-python-ffd204f99470
+(and github file: https://github.com/WillKoehrsen/recurrent-neural-networks/blob/master/notebooks/Deep%20Dive%20into%20Recurrent%20Neural%20Networks.ipynb ) 
+
+Mosteller, F. & Wallace, D. L. 1963. Inference in an authorship problem. Journal of the American Statistical ASSOCIATION. 58(302): 275-309. Doi: 10.2307/2283270.
+
+Savoy, J. 2015. The Federalist Papers revisited: A collaborative attribution scheme. Proceedings of the… ASIS Annual Meeting. 50(1): 1-8. Doi: 10.1002/meet.14505001036.
+
